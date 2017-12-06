@@ -16,6 +16,10 @@ module MoSQL
           }
           col[:primary] = ent[:primary] if ent[:primary]
           col[:default] = ent[:default] if ent[:default]
+          if ent[:seed_from_mongo_id] && ent[:seed_from_table]
+            col[:seed_from_table] = ent[:seed_from_table]
+            col[:seed_from_mongo_id] = ent[:seed_from_mongo_id]
+          end
         elsif ent.is_a?(Hash) && ent.keys.length == 1 && ent.values.first.is_a?(String)
           col = {
             :source => ent.first.first,
