@@ -1,7 +1,8 @@
 # Recent addition in this repository:
 
-Added ability for adding id as uuid
-Save embedded documents too
+* Added ability for adding id as uuid
+* Save embedded documents too
+* Seed belongs_to relationship
 
 # MoSQL: Put Mo' SQL in your NoSQL
 
@@ -57,10 +58,30 @@ types. An example collection map might be:
           :type: TEXT
         - title: TEXT
         - created: DOUBLE PRECISION
+        - user_id:
+          :source: new_field
+          :type: uuid
+          :seed_from_mongo_id: user_mongo_id
+          :seed_from_table: users
+        - user_mongo_id:
+          :source: user_id
+          type: TEXT
         :meta:
           :table: blog_posts
           :extra_props: true
           :parent_table: embeddable # new key introduced
+      comments:
+        - commentable_id:
+          :source: new_field
+          :type: uuid
+          :seed_from_mongo_id: commentable_mongo_id
+          :seed_from_table: polymorphic-commentable_type
+        - commentable_type
+          :source: commentable_type
+          :type: TEXT
+        - commentable_mongo_id
+          :source: commentable_id
+          type: TEXT
 
 Said another way, the collection map is a YAML file containing a hash
 mapping
