@@ -210,14 +210,13 @@ module MoSQL
                   att[column[:name]] = (@sql.db[table_name.to_sym].where(mongo_id: mongo_id).first||{})[:id]
                 end
               rescue => e
-                debugger
+                puts e
               end
             end
             record.update(att)
           end
         end
         @sql.db.tables.each do |t|
-          puts "adding"
           puts "Records in table #{t}: #{@sql.db[t.to_sym].count}"
         end
       end
