@@ -213,7 +213,7 @@ module MoSQL
                 puts e
               end
             end
-            record.update(att)
+            @sql.db[t].where(id: record[:id]).update(att) if att.any?
           end
         end
         @sql.db.tables.each do |t|
