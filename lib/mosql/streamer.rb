@@ -65,7 +65,7 @@ module MoSQL
     end
 
     def create_record(table, ns, h, overwrite_attributes = {})
-      h.merge(overwrite_attributes) if overwrite_attributes
+      h.merge!(overwrite_attributes) if overwrite_attributes
       h = h.select{|x, y| y}
       associations = []
       if h['_extra_props']
@@ -74,7 +74,6 @@ module MoSQL
           associations, h['_extra_props'] = fetch_association(table, ns, h, extra_props)
         end
       end
-
       parent_id = @sql.upsert!(table, @schema.primary_sql_key_for_ns(ns), h)
 
       create_associations(associations, parent_id)
