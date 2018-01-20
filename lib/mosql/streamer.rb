@@ -189,12 +189,12 @@ module MoSQL
           exit(0) if @done
         end
         @sql.db.tables.select{|t| @schema.find_ns("#{dbname}.#{t}")}.each do |t|
-          puts "adding relations for #{t}"
+          log.info("Adding relations for #{t}")
           columns = @schema.find_ns("#{dbname}.#{t}")[:columns].select{|c| c[:seed_from_table]}
-          records = @sql.db[t].all
-          records.each do |record|
+          @sql.db[t].each do |record|
             att = {}
             columns.each do |column|
+              # log.info("On record #{record[:id]} column #{column}")
               begin
                 if mongo_id = record[column[:seed_from_mongo_id].to_sym]
                   if mongo_id.match(/\{\"\$oid\"\:\"/)
@@ -202,10 +202,12 @@ module MoSQL
                   end
                   table_name = if column[:seed_from_table].match(/polymorphic\-/)
                       polymorphic_column = column[:seed_from_table].gsub(/polymorphic\-/, '')
+                      # log.info("Polymorphic column is #{polymorphic_column}")
                       ActiveSupport::Inflector.tableize(record[polymorphic_column.to_sym])
                     else
                       column[:seed_from_table]
                     end
+                  # log.info("Table name is #{table_name}")
                   att[column[:name]] = (@sql.db[table_name.to_sym].where(mongo_id: mongo_id).first||{})[:id]
                 end
               rescue => e
