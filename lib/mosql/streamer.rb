@@ -211,7 +211,7 @@ module MoSQL
                   att[column[:name]] = (@sql.db[table_name.to_sym].where(mongo_id: mongo_id).first||{})[:id]
                 end
               rescue => e
-                puts e
+                puts "Error when updating column:", column, "Error:", e, "Record:", record
               end
             end
             @sql.db[t].where(id: record[:id]).update(att) if att.any?
