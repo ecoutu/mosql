@@ -90,7 +90,7 @@ module MoSQL
           composite_key = meta[:composite_key]
           keys = []
           if clobber and meta[:force_drop]
-            db.drop_table(meta[:table], cascade: true)
+            db.drop_table?(meta[:table], cascade: true)
           end
           db.send(clobber ? :create_table! : :create_table?, meta[:table]) do
             collection[:columns].each do |col|
