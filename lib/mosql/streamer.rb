@@ -188,33 +188,61 @@ module MoSQL
           import_collection(ns, collection, spec[collection.name][:meta][:filter])
           exit(0) if @done
         end
+        # iterate over each table, updating "foreign keys" to use uuid instead of ObjectId
+        # at this point a uuid has been generated for id columns to replace mongo_id columns
+        # we need to generate id columns from existing mongo_id columns ( / relationships) 
         @sql.db.tables.select{|t| @schema.find_ns("#{dbname}.#{t}")}.each do |t|
           log.info("Adding relations for #{t}")
-          columns = @schema.find_ns("#{dbname}.#{t}")[:columns].select{|c| c[:seed_from_table]}
-          @sql.db[t].each do |record|
-            att = {}
-            columns.each do |column|
-              # log.info("On record #{record[:id]} column #{column}")
-              begin
-                if mongo_id = record[column[:seed_from_mongo_id].to_sym]
-                  if mongo_id.match(/\{\"\$oid\"\:\"/)
-                    mongo_id = att[column[:seed_from_mongo_id].to_sym] = mongo_id.gsub(/\{\"\$oid\"\:\"|\"\}/, '')
-                  end
-                  table_name = if column[:seed_from_table].match(/polymorphic\-/)
-                      polymorphic_column = column[:seed_from_table].gsub(/polymorphic\-/, '')
-                      # log.info("Polymorphic column is #{polymorphic_column}")
-                      ActiveSupport::Inflector.tableize(record[polymorphic_column.to_sym])
-                    else
-                      column[:seed_from_table]
-                    end
-                  # log.info("Table name is #{table_name}")
-                  att[column[:name]] = (@sql.db[table_name.to_sym].where(mongo_id: mongo_id).first||{})[:id]
-                end
-              rescue => e
-                puts "Error when updating column:", column, "Error:", e, "Record:", record
-              end
+          columns = @schema
+            .find_ns("#{dbname}.#{t}")[:columns]
+            .select { |c| c[:seed_from_table] }
+
+          columns.each do |column|
+            log.info("Starting column #{column}")
+            seed_from_table = column[:seed_from_table]
+            seed_from_mongo_id = column[:seed_from_mongo_id]
+            rel_table_names = if seed_from_table.match? /polymorphic-/
+              # polymorphic column is a column in the source table that contains names of other models
+              # this relation belongs to - the value of this column is the name of another table
+              # eg: notifications.receiver_type = User
+              polymorphic_column = seed_from_table.gsub(/polymorphic\-/, '').to_sym
+
+              # find distinct values for polymorphic columns, this query is
+              # discovering all the tables referenced by the polymorphic column
+              @sql
+                .db[t]
+                .distinct
+                .select(polymorphic_column)
+                .map(polymorphic_column)
+                .compact
+                .map { |rel_table_name| ActiveSupport::Inflector.tableize(rel_table_name.to_sym) }
+            else
+              [column[:seed_from_table].to_sym]
             end
-            @sql.db[t].where(id: record[:id]).update(att) if att.any?
+            log.info("For #{t}.#{column}:")
+            log.info("seed_from_table: #{seed_from_table}")
+            log.info("seed_from_mongo_id: #{seed_from_mongo_id}")
+            log.info("table_names: #{rel_table_names}")
+
+            # example of the update we are generating:
+            # UPDATE notifications
+            # SET from_id = src.id FROM (
+            #                             SELECT
+            #                               id,
+            #                               mongo_id
+            #                             FROM jobs
+            #                           ) src
+            # WHERE notifications.from_mongo_id = src.mongo_id;
+            rel_table_names.each do |rel_table|
+              # could try harder here to avoid SQL injection, depending on safety of polymorphic columns
+              # or configuration files
+              sql_statement = """#{column[:name]} = src.id FROM (SELECT id, mongo_id FROM #{rel_table}) src WHERE #{t}.#{seed_from_mongo_id} = src.mongo_id"""
+
+              log.info("Executing SQL for relationship #{t} -> #{rel_table}")
+              log.info(sql_statement)
+              nupdates = @sql.db[t].update(Sequel.lit(sql_statement))
+              log.info("Updated #{nupdates}")
+            end
           end
         end
         @sql.db.tables.each do |t|
