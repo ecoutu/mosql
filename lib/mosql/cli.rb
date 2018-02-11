@@ -34,9 +34,9 @@ module MoSQL
 
     def parse_args
       @options = {
-        :collections => 'collections.yml',
-        :sql    => 'postgres:///',
-        :mongo  => 'mongodb://localhost',
+        :collections => ENV['MOSQL_COLLECTIONS'] || 'collections.yml',
+        :sql    => ENV['MOSQL_SQL_URL'] || 'postgres:///',
+        :mongo  => ENV['MOSQL_MONGO_URL'] || 'mongodb://localhost',
         :verbose => 0
       }
       optparse = OptionParser.new do |opts|
