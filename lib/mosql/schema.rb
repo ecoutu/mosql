@@ -83,15 +83,17 @@ module MoSQL
 
     def create_schema(db, clobber=false)
       db.run 'CREATE EXTENSION "uuid-ossp"' rescue nil
+      if clobber
+        db.tables.each do |table|
+          db.drop_table?(table, cascade: true)
+        end
+      end
       @map.values.each do |dbspec|
         dbspec.each do |n, collection|
           next unless n.is_a?(String)
           meta = collection[:meta]
           composite_key = meta[:composite_key]
           keys = []
-          if clobber and meta[:force_drop]
-            db.drop_table?(meta[:table], cascade: true)
-          end
           db.send(clobber ? :create_table! : :create_table?, meta[:table]) do
             collection[:columns].each do |col|
               opts = {}
