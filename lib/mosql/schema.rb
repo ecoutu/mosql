@@ -271,6 +271,8 @@ module MoSQL
         ret
       when Array
         value.map {|v| sanitize(v)}
+      when BSON::ObjectId
+        value.to_s
       when BSON::Binary
         Base64.encode64(value.to_s)
       when Float
